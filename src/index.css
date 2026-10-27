@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Custom scrollbar for light dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Leaflet light theme adjustments & stacking context isolation */
+.leaflet-container {
+  background-color: #F0F9FF !important;
+  font-family: 'Inter', sans-serif !important;
+  isolation: isolate;
+  z-index: 1 !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #BAE6FD !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.15) !important;
+}
+
+.leaflet-popup-tip {
+  background-color: #FFFFFF !important;
+  border: 1px solid #BAE6FD !important;
+}

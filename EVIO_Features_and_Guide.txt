@@ -1,0 +1,291 @@
+================================================================================
+EVIO - ELECTRIC VEHICLE CHARGING, GRID SUPERVISION & ENERGY ECOSYSTEM
+DETAILED FEATURES LIST & NORMAL PLAIN-ENGLISH USER GUIDE
+================================================================================
+
+1. WHAT IS EVIO? (SIMPLE SUMMARY)
+--------------------------------------------------------------------------------
+EVIO is a complete smart platform for Electric Vehicles (EVs). It connects:
+1. EV Drivers looking for nearby, fast, and available charging spots.
+2. Station Hosts (homeowners, business owners, hotel managers) who want to share
+   or rent out their EV chargers and earn money.
+3. Grid Supervisors (electrical safety engineers and grid operators) who inspect
+   chargers, balance power load on the electrical grid, and keep the system safe.
+4. Commercial Franchise Partners who want to launch turnkey public charging hubs.
+
+Unlike basic map apps that only show static pins, EVIO offers real-time slot
+booking, automated energy telemetry, emergency battery delivery, peer-to-peer EV
+charging, AI-driven trip simulation, and live electrical safety verification.
+
+
+================================================================================
+2. COMPLETE FEATURES LIST (BY MODULE)
+================================================================================
+
+A. DRIVER & DISCOVERY MODULE
+--------------------------------------------------------------------------------
+1. Interactive Real-Time Map (LiveMap):
+   - Dynamic map centered on the user's active GPS location.
+   - Distinct color-coded pins: Green for Available Hubs, Orange for In-Use,
+     Purple for Public Government Grid Stations, Grey for Offline.
+   - Shows station power in kW, distance from current location, and pricing.
+   - Visual radius circle illustrating the search distance.
+   - Automatic nearby station generator ensuring that wherever you are in the
+     world, verified chargers appear around your location.
+
+2. Advanced Discovery Filters:
+   - Filter by connector type: CCS-2, Type 2 (Mennekes), GB/T, CHAdeMO, Type 1.
+   - Filter by power tier: Slow (3-7kW AC), Fast (11-22kW AC), Rapid (50kW+ DC).
+   - Filter by real-time status: Show only currently available/unoccupied bays.
+   - Filter by maximum price per kWh.
+   - Sort by: Nearest Distance, Lowest Price, Highest Host Rating, Highest Power.
+   - Toggle between Live Map View, Grid Card View, and Regional Demand Heatmap.
+
+3. Charger Detail & Amenities Profile:
+   - Full photo gallery of the station and parking bay.
+   - Electrical specs: rated kW, voltage, phase, cable length in meters.
+   - Operating hours (e.g., 24/7 or specific daily schedules).
+   - Bay amenities: Covered Canopy, CCTV Security, High-Speed WiFi, Restrooms,
+     Coffee Lounge, Food Court, Keyless Access.
+   - Verified electrical safety certificate badge with viewable inspection file.
+   - Host rating, review count, and host responsiveness.
+
+4. Seamless Booking & Reservation System:
+   - Instant Booking or Host-Approval mode.
+   - Select charging start time, duration (1 to 8 hours), and target battery charge.
+   - Real-time cost estimator calculating expected kWh delivery and fee.
+   - Payment via in-app wallet, credit/debit card, or UPI.
+
+5. Active Charging Session Telemetry (HUD):
+   - Live dashboard during an active charging session.
+   - Real-time battery percentage ring animation.
+   - Telemetry tracking delivered energy (kWh) and live charging rate (kW).
+   - Running session cost counter updated second-by-second.
+   - One-click "Stop Charging Session" button that generates a verified digital receipt.
+
+6. Digital Invoice & Receipt Generator:
+   - Complete breakdown: base energy rate, platform fee, taxes, total paid.
+   - Station details, start/end timestamps, and kWh consumed.
+   - Downloadable/printable proof of charge.
+
+
+B. EMERGENCY & HIGHWAY SOS SERVICES
+--------------------------------------------------------------------------------
+1. Doorstep Swappable Battery Delivery:
+   - For drivers stranded with 0% battery or low range who cannot reach a charger.
+   - Pinpoints your breakdown coordinates via GPS.
+   - Dispatches a mobile delivery van carrying a fully charged 100% battery pack.
+   - Live status pipeline: Requested -> Dispatched -> Partner En Route -> Swapped.
+   - Displays partner name, vehicle plate, and estimated time of arrival (~18 mins).
+
+2. Highway Vehicle-to-Vehicle (V2V) Reverse Charge SOS:
+   - For highway emergencies where an EV is stranded between distant cities.
+   - Broadcasts an emergency power request to nearby EV drivers with bidirectional
+     V2L/V2V capabilities.
+   - Passing EV donors can accept the request, hook up a Type 2 / CCS transfer cable,
+     and transfer 5 to 15 kWh of energy directly from their car to yours.
+   - Donor earns a compensation payout for the energy shared.
+   - Real-time online donor driver radar map showing active EVs on the corridor.
+
+
+C. AI JOURNEY PREDICTION & BATTERY DISCHARGE ENGINE
+--------------------------------------------------------------------------------
+1. Custom Origin and Destination Route Simulator:
+   - Type any starting city, neighborhood, or exact GPS coordinates.
+   - Type any destination city, landmark, or coordinates.
+   - "Use My GPS" button instantly locks your active coordinates as the origin.
+   - Smart geocoding translates city names into real geographical coordinates.
+   - Automatically computes real-world highway road distance in kilometers.
+
+2. Precision Energy Consumption Modeling:
+   - Select your EV vehicle profile (e.g., Tata Nexon EV Max, MG ZS EV,
+     Mahindra XUV400, Hyundai Ioniq 5, Tata Tiago EV, Ather 450X).
+   - Models battery capacity, claimed range, and real-world Wh/km consumption.
+   - Select starting battery State of Charge (SoC) % (10% to 100%).
+   - Select Driving Dynamics Mode:
+     * ECO Mode: +12% range extension (reduced motor draw).
+     * NORMAL Mode: Standard highway energy consumption.
+     * SPORT Mode: Higher power delivery, increased battery drain.
+   - Climate Control (AC) toggle: Adjusts energy consumption for heating/cooling.
+
+3. Critical Battery Discharge Warning:
+   - Evaluates if your current battery can make the trip without stopping.
+   - If battery will run out, it pinpoints the EXACT kilometer mark where the
+     battery will reach 0% (Discharge Zone).
+   - Drops a red warning marker on the map at the exact hazard point.
+
+4. Intelligent Route Charging Stop Recommendation:
+   - Automatically calculates the optimal charging waypoint situated along the route.
+   - Finds registered stations or dynamically places a highway superhub along the
+     actual road corridor.
+   - Shows arrival battery %, recommended charging boost (e.g., charge up to 80%),
+     charging duration in minutes, and estimated charging cost.
+   - Interactive Leaflet route map displays Origin (A), Stop (Zap), and Destination (B)
+     with animated directional polylines.
+
+
+D. EV HOST & STATION OPERATOR PORTAL
+--------------------------------------------------------------------------------
+1. Multi-Step Station Listing Wizard:
+   - Add new chargers to the network in 4 easy steps:
+     Step 1: Location details (Address, Google Maps pin, premise type: Home, Hub, Mall).
+     Step 2: Electrical specifications (Power in kW, Level 2 AC or DC Fast, connectors).
+     Step 3: Pricing and operating schedule (24/7 or custom hours, rate per kWh).
+     Step 4: Upload photos and required electrical safety/earthing compliance certificate.
+
+2. Host Earnings & Business Analytics:
+   - Track total earnings, completed charging sessions, and total kWh delivered.
+   - Interactive daily/weekly earnings chart tracking energy demand peaks.
+   - Fleet capacity overview showing total installed power in kW.
+
+3. Live Charger Bay Control:
+   - Toggle station status between Available, In-Use, Maintenance, or Offline.
+   - Vacation Mode: Pause station from the public map temporarily without deleting.
+   - Delete station when permanently uninstalled.
+
+4. Auto-Accept Booking Pilot:
+   - Toggle on "Auto-Pilot" to automatically confirm driver bookings instantly.
+   - Or review incoming requests manually before granting parking access.
+
+5. In-App Driver Communication:
+   - Integrated chat drawer to guide arriving drivers with parking bay numbers,
+     gate access codes, or barrier pins.
+
+
+E. GRID SUPERVISOR & ELECTRICAL SAFETY AUTHORITY
+--------------------------------------------------------------------------------
+1. Operations Console & Station Oversight:
+   - High-level control room for electrical engineers and grid supervisors.
+   - Complete inventory of all charging stations connected to the distribution grid.
+   - Root authority to inspect, approve, or permanently delete hazardous stations.
+
+2. Safety Certification Approval Queue:
+   - Every newly listed station must submit an electrical certificate.
+   - Supervisors review earthing resistance (must be < 5 Ohms), RCD Type B breaker
+     presence, and licensed electrician sign-off.
+   - One-click "Approve for Grid Live Map" or "Reject with Compliance Rationale".
+
+3. Substation Feeder Telemetry & Load Balancing:
+   - Real-time line voltage monitoring (nominal 230V single-phase / 400V 3-phase).
+   - Grid frequency monitoring (50.0 Hz nominal frequency tracking).
+   - Power factor telemetry (cos phi optimal targets).
+   - Peak shaving controls: Dynamic load management to prevent distribution
+     transformer blowouts during peak residential evening hours.
+
+4. Station Incident & Dispute Arbitration:
+   - Resolves driver-host disputes (e.g., ICEing - gas cars blocking EV bays,
+     defective cables, incorrect billing).
+   - Supervisor arbitration queue with one-click resolution.
+
+5. Immutable Safety Audit Trail:
+   - Chronological, tamper-evident log of all safety verifications, breaker trip
+     events, and operator sign-offs for legal compliance.
+
+
+F. COMMERCIAL FRANCHISE HUB PROGRAM
+--------------------------------------------------------------------------------
+1. Turnkey EV Charging Hub Applications:
+   - Commercial property owners can apply to install multi-bay fast charging hubs.
+   - Wholesale procurement pipeline directly with Tier-1 hardware manufacturers
+     (ABB, Schneider Electric, Delta Electronics).
+   - Site evaluation: Feeder capacity, parking bay footprint, and projected ROI.
+   - Grid Supervisor review, quotation, and wholesale equipment subsidies.
+
+
+G. PLATFORM INFRASTRUCTURE & WALLET
+--------------------------------------------------------------------------------
+1. Digital Wallet System:
+   - Real-time wallet balance for instant, friction-free charging payments.
+   - Quick top-up via UPI, Debit/Credit Card, or Net Banking.
+   - Instant payouts to host accounts after completed charging sessions.
+
+2. Multi-Currency Engine:
+   - Dynamic currency selector supporting INR (Rs), USD ($), EUR (EUR), and GBP (GBP).
+   - All prices, telemetry totals, and wallet balances format automatically.
+
+3. Embedded AI Assistant:
+   - Floating intelligent copilot available across all screens.
+   - Answers questions on charging etiquette, connector standards, battery health,
+     and trip planning.
+
+
+================================================================================
+3. NORMAL PLAIN-ENGLISH EXPLANATION OF HOW IT WORKS
+================================================================================
+
+SCENARIO 1: YOU ARE AN EV DRIVER NEEDING A CHARGE
+-------------------------------------------------
+1. Open the App: The map automatically pinpoints your current location with a blue
+   pulsing dot.
+2. Find a Charger: Look around your pin on the map. You will see several charging
+   stations (green for available hubs, purple for fast public stations).
+3. Check Distance and Specs: Each station card tells you exactly how many kilometers
+   away it is, what speed it charges at (e.g., 22kW or 60kW), and the price per unit.
+4. Book a Slot: Tap on a station you like, choose what time you want to arrive and
+   how many hours you want to charge. Pay using your in-app wallet or card.
+5. Plug In & Track: When you arrive, plug your car in and start the session. You can
+   watch your car's battery percentage climb on your phone screen in real-time,
+   along with the exact electricity cost.
+6. Stop and Go: When your car is full, tap "Stop Session", unplug, and receive your
+   digital invoice right in the app.
+
+
+SCENARIO 2: YOU ARE PLANNING A LONG HIGHWAY TRIP
+-------------------------------------------------
+1. Open "AI Journey Prediction" from the top menu.
+2. Enter your starting point (or click "Use My GPS") and enter your destination.
+3. Select your exact electric car model and your current battery percentage (e.g., 40%).
+4. The system calculates the road distance and checks if your battery will make it.
+5. If your car will run out of power along the highway, the app marks the danger point
+   on the map and automatically suggests the best highway charging stop midway.
+6. It tells you exactly how many minutes you need to stop for (e.g., 28 mins to reach 80%)
+   and what the recharge will cost, so you never get stranded.
+
+
+SCENARIO 3: YOU RUN OUT OF BATTERY ON THE ROAD (EMERGENCY)
+----------------------------------------------------------
+If you ever run out of charge away from a station, you have two safety nets:
+1. Battery Delivery: Tap "Doorstep Swappable Battery Delivery". A mobile support van
+   comes to your car's exact GPS location with a fresh battery pack to get you moving.
+2. V2V Highway SOS: Tap "Highway V2V Reverse Charge SOS". The app alerts other EV
+   drivers on the same highway. A nearby driver can pull over, connect a transfer
+   cable between cars, and share some battery power with you.
+
+
+SCENARIO 4: YOU HAVE AN EV CHARGER AT HOME OR BUSINESS AND WANT TO EARN MONEY
+-----------------------------------------------------------------------------
+1. Switch your role to "Host" in the top bar.
+2. Click "List a Charger". Enter your address, charger speed (e.g., 7.4kW or 22kW),
+   and the price you want to charge per kWh.
+3. Upload a photo and your electrician's safety inspection certificate.
+4. Once our grid supervisor verifies the safety document, your charger goes live
+   on the public map.
+5. When local drivers charge at your bay, payments are transferred straight into
+   your wallet. You can set it to auto-accept bookings or approve them manually.
+
+
+SCENARIO 5: KEEPING THE ELECTRICAL GRID SAFE (SUPERVISOR ROLE)
+-------------------------------------------------------------
+Electric vehicle charging takes a massive amount of electrical power. If too many
+cars charge on one neighborhood transformer at once, fuses blow and power goes out.
+1. Grid Supervisors use the "Supervisor Console" to monitor live voltage, frequency,
+   and electrical load.
+2. When high peak hours happen, EVIO's load balancer automatically slows down non-urgent
+   charging to protect the neighborhood grid.
+3. Supervisors also inspect every single charger before it goes live to make sure
+   the electrical earthing is safe and won't cause shocks or fires.
+
+
+================================================================================
+4. KEY TECHNICAL STANDARDS FOLLOWED BY EVIO
+================================================================================
+- IEC 61851-1: International standard for EV conductive charging systems.
+- NB 777 / National Discom Code: Earthing resistance compliance (< 5 Ohms).
+- RCD Type B: Residual Current Devices providing AC and DC leakage protection.
+- Open Charge Map (OCM) API: Global registry integration for public charging points.
+- Leaflet & OpenStreetMap: High-performance, open-standard interactive geospatial mapping.
+- Nominatim Geocoding: Automated geographic coordinate resolution for trip planning.
+
+================================================================================
+End of Guide • EVIO Clean Mobility Ecosystem (2026)
+================================================================================
