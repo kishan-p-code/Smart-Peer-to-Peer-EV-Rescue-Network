@@ -33,15 +33,9 @@ export const AdminPanel: React.FC = () => {
     <div className="space-y-6 font-sans">
       
       {/* Admin Header */}
-      <div className="bg-white border border-[#BAE6FD] rounded-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-white border border-[#BAE6FD] rounded-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
-            <span className="text-xs font-mono font-bold text-[#0284C7] uppercase tracking-wider">
-              Electrical Safety Authority & Grid Supervision
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Installation Compliance Inspection</h1>
+          <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">Compliance & Approvals</h1>
         </div>
 
         {/* Tab switch */}
@@ -86,11 +80,8 @@ export const AdminPanel: React.FC = () => {
         <div className="space-y-4">
           {pendingListings.length === 0 ? (
             <div className="bg-white border border-[#BAE6FD] rounded-card p-12 text-center shadow-sm">
-              <CheckCircle2 className="w-10 h-10 text-[#16A34A] mx-auto mb-3 opacity-90" />
+              <CheckCircle2 className="w-10 h-10 text-[#16A34A] mx-auto mb-2 opacity-90" />
               <h3 className="text-base font-bold text-[#0F172A]">All Stations Verified & Active</h3>
-              <p className="text-xs text-[#64748B] mt-1 max-w-sm mx-auto font-sans">
-                Zero stations in the review queue. All connected charging nodes have verified electrical certificates.
-              </p>
             </div>
           ) : (
             pendingListings.map(chg => (

@@ -10,7 +10,9 @@ import {
   TrendingUp, 
   Car, 
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Navigation,
+  Crosshair
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { HeatmapZone } from '../../types';
@@ -20,10 +22,12 @@ interface HeatmapViewProps {
 }
 
 export const HeatmapView: React.FC<HeatmapViewProps> = ({ onOpenFranchise }) => {
-  const { chargers, userCoords, onlineDrivers, heatmapZones, formatCurrency } = useApp();
+  const { chargers, userCoords, setUserCoords, onlineDrivers, heatmapZones, formatCurrency } = useApp();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   // Layer toggles
   const [showDriverDensity, setShowDriverDensity] = useState(true);
@@ -33,6 +37,30 @@ export const HeatmapView: React.FC<HeatmapViewProps> = ({ onOpenFranchise }) => 
   const densityLayersRef = useRef<L.LayerGroup>(L.layerGroup());
   const desertLayersRef = useRef<L.LayerGroup>(L.layerGroup());
   const coverageLayersRef = useRef<L.LayerGroup>(L.layerGroup());
+
+  // Locate Me handler
+  const handleLocateMe = () => {
+    if ('geolocation' in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const next: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          setUserCoords(next);
+          setIsLocating(false);
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo(next, 14, { animate: true, duration: 1.2 });
+          }
+        },
+        err => {
+          setIsLocating(false);
+          alert('Could not acquire GPS coordinates. Please ensure location permissions are enabled in your browser.');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
 
   // Initialize Map
   useEffect(() => {
@@ -62,6 +90,40 @@ export const HeatmapView: React.FC<HeatmapViewProps> = ({ onOpenFranchise }) => 
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Fly to and update user location marker on Heatmap
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    map.flyTo(userCoords, 14, { animate: true, duration: 1.0 });
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng(userCoords);
+    } else {
+      const userIcon = L.divIcon({
+        className: 'heatmap-user-pin',
+        html: `
+          <div class="flex flex-col items-center cursor-pointer -translate-y-2">
+            <div style="background-color: #0284C7; color: #FFFFFF;" 
+                 class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold whitespace-nowrap mb-1 border border-white shadow-md flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              <span>My Location</span>
+            </div>
+            <div class="relative flex items-center justify-center">
+              <div class="w-7 h-7 rounded-full bg-[#0284C7]/30 animate-ping absolute"></div>
+              <div class="w-4 h-4 rounded-full bg-[#0284C7] border-2 border-white shadow-lg"></div>
+            </div>
+          </div>
+        `,
+        iconSize: [90, 48],
+        iconAnchor: [45, 46],
+      });
+      userMarkerRef.current = L.marker(userCoords, { icon: userIcon, zIndexOffset: 2000 })
+        .bindPopup(`<strong>Your Location</strong><br/>${userCoords[0].toFixed(4)}, ${userCoords[1].toFixed(4)}`)
+        .addTo(map);
+    }
+  }, [userCoords]);
 
   // Update Heatmap Layers
   useEffect(() => {
@@ -213,44 +275,41 @@ export const HeatmapView: React.FC<HeatmapViewProps> = ({ onOpenFranchise }) => 
       
       {/* Top Telemetry KPI Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3.5 bg-white rounded-xl border border-[#BAE6FD] shadow-xs">
+        <div className="p-3 bg-white rounded-xl border border-[#BAE6FD] shadow-xs">
           <div className="flex items-center justify-between text-[#E11D48] mb-1">
             <span className="text-[10px] font-mono font-bold uppercase">Active EV Density</span>
             <Activity className="w-4 h-4" />
           </div>
           <span className="text-xl font-bold font-mono text-[#0F172A]">80+ EVs</span>
-          <span className="text-[10px] text-[#64748B] block font-mono">Live highway telemetry flow</span>
         </div>
 
-        <div className="p-3.5 bg-white rounded-xl border border-[#FDE68A] shadow-xs">
+        <div className="p-3 bg-white rounded-xl border border-[#FDE68A] shadow-xs">
           <div className="flex items-center justify-between text-[#D97706] mb-1">
             <span className="text-[10px] font-mono font-bold uppercase">Charging Deserts</span>
             <AlertTriangle className="w-4 h-4" />
           </div>
           <span className="text-xl font-bold font-mono text-[#D97706]">2 Dark Zones</span>
-          <span className="text-[10px] text-[#64748B] block font-mono">Unserved highway gaps &gt; 15 km</span>
         </div>
 
-        <div className="p-3.5 bg-white rounded-xl border border-[#BAE6FD] shadow-xs">
+        <div className="p-3 bg-white rounded-xl border border-[#BAE6FD] shadow-xs">
           <div className="flex items-center justify-between text-[#0284C7] mb-1">
             <span className="text-[10px] font-mono font-bold uppercase">Network Stations</span>
             <Zap className="w-4 h-4" />
           </div>
           <span className="text-xl font-bold font-mono text-[#0F172A]">{chargers.length} Active</span>
-          <span className="text-[10px] text-[#64748B] block font-mono">Hubs + Public Fast Chargers</span>
         </div>
 
-        <div className="p-3.5 bg-[#F0FDF4] rounded-xl border border-[#86EFAC] shadow-xs flex flex-col justify-between">
+        <div className="p-3 bg-[#F0FDF4] rounded-xl border border-[#86EFAC] shadow-xs flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-mono font-bold text-[#16A34A] uppercase block">Franchise Hotspot</span>
-            <span className="text-xs font-bold font-mono text-[#0F172A] truncate block">Lonavala Highway Gap</span>
+            <span className="text-xs font-bold font-mono text-[#0F172A] truncate block">Lonavala Gap</span>
           </div>
           {onOpenFranchise && (
             <button
               onClick={onOpenFranchise}
               className="mt-1 text-[11px] font-mono font-bold text-[#16A34A] hover:underline flex items-center gap-1"
             >
-              <span>Setup Hub Here (40% Off) &rarr;</span>
+              <span>Setup Hub &rarr;</span>
             </button>
           )}
         </div>
@@ -259,6 +318,19 @@ export const HeatmapView: React.FC<HeatmapViewProps> = ({ onOpenFranchise }) => 
       {/* Main Heatmap Container */}
       <div className="relative w-full h-[580px] rounded-2xl overflow-hidden border border-[#BAE6FD] shadow-sm bg-white z-0 isolate">
         <div ref={mapContainerRef} className="w-full h-full" />
+
+        {/* Floating Locate Me Button (Top Left) */}
+        <div className="absolute top-4 left-4 z-10">
+          <button
+            type="button"
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-white/95 hover:bg-white text-[#0F172A] font-mono font-bold text-xs rounded-xl shadow-md border border-[#BAE6FD] transition-all active:scale-95 hover:border-[#0284C7] hover:text-[#0284C7]"
+          >
+            <Crosshair className={`w-4 h-4 text-[#0284C7] ${isLocating ? 'animate-spin' : ''}`} />
+            <span>{isLocating ? 'Locating...' : 'Locate Me'}</span>
+          </button>
+        </div>
 
         {/* Floating Layer Controls (Top Right) */}
         <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md border border-[#BAE6FD] rounded-xl p-3 shadow-lg font-mono text-xs space-y-2 max-w-xs">

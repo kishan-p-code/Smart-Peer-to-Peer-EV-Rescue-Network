@@ -123,12 +123,7 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({ onOpenListingWizar
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {/* Auto-Accept Toggle Switch */}
           <div className="flex items-center gap-2.5 bg-[#F0F9FF] border border-[#BAE6FD] p-2 rounded-xl">
-            <div className="text-right hidden sm:block">
-              <span className="text-[11px] font-mono font-bold text-[#0F172A] block">Auto-Accept Requests</span>
-              <span className="text-[10px] text-[#64748B] font-mono">
-                {autoAcceptBookings ? 'Slots auto-confirmed' : 'Manual host approval'}
-              </span>
-            </div>
+            <span className="text-[11px] font-mono font-bold text-[#0F172A] hidden sm:block">Auto-Accept</span>
             <button
               type="button"
               onClick={toggleAutoAcceptBookings}
@@ -171,29 +166,22 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({ onOpenListingWizar
         {/* KPI 1: Fleet Count */}
         <div className="bg-white border border-[#BAE6FD] rounded-card p-5 relative overflow-hidden shadow-sm">
           <div className="flex items-center justify-between text-[#64748B] text-xs font-mono font-bold mb-2">
-            <span>MY CHARGING FLEET</span>
+            <span>MY FLEET</span>
             <span className="text-[#0284C7] font-mono">{liveCount} Live</span>
           </div>
           <div className="font-mono text-[30px] font-bold text-[#0F172A] tracking-tight">
             {myChargers.length} {myChargers.length === 1 ? 'Station' : 'Stations'}
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-[#64748B] font-mono">
-            <span className="text-[#D97706] font-bold">{pendingCount}</span>
-            <span>Awaiting supervisor approval</span>
           </div>
         </div>
 
         {/* KPI 2: Total Power Capacity */}
         <div className="bg-white border border-[#BAE6FD] rounded-card p-5 relative overflow-hidden shadow-sm">
           <div className="flex items-center justify-between text-[#64748B] text-xs font-mono font-bold mb-2">
-            <span>TOTAL CAPACITY</span>
+            <span>CAPACITY</span>
             <Zap className="w-4 h-4 text-[#16A34A]" />
           </div>
           <div className="font-mono text-[30px] font-bold text-[#16A34A] tracking-tight">
             {totalCapacityKw} kW
-          </div>
-          <div className="mt-2 text-xs text-[#64748B] font-mono">
-            Combined grid capacity
           </div>
         </div>
 
@@ -206,22 +194,16 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({ onOpenListingWizar
           <div className="font-mono text-[30px] font-bold text-[#0F172A] tracking-tight">
             {formatCurrency(totalEarnings)}
           </div>
-          <div className="mt-2 text-xs text-[#64748B] font-mono">
-            After 10% network operations fee
-          </div>
         </div>
 
         {/* KPI 4: Sessions & Energy */}
         <div className="bg-white border border-[#BAE6FD] rounded-card p-5 relative overflow-hidden shadow-sm">
           <div className="flex items-center justify-between text-[#64748B] text-xs font-mono font-bold mb-2">
-            <span>SESSIONS DISPENSED</span>
+            <span>SESSIONS</span>
             <Clock className="w-4 h-4 text-[#0284C7]" />
           </div>
           <div className="font-mono text-[30px] font-bold text-[#0284C7] tracking-tight">
             {totalSessions}
-          </div>
-          <div className="mt-2 text-xs text-[#64748B] font-mono">
-            {totalKwh} kWh delivered
           </div>
         </div>
 
@@ -235,9 +217,6 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({ onOpenListingWizar
               <Zap className="w-5 h-5 text-[#0284C7]" />
               <span>All Stations Listed by Me ({myChargers.length})</span>
             </h2>
-            <p className="text-xs text-[#64748B] font-sans">
-              Click any station card to inspect full details, past session usages, and tax invoices.
-            </p>
           </div>
 
           <button

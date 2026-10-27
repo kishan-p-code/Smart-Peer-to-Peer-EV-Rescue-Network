@@ -202,6 +202,7 @@ export const JourneyPredictionView: React.FC = () => {
   const [startSocPercentage, setStartSocPercentage] = useState<number>(45);
   const [drivingMode, setDrivingMode] = useState<'eco' | 'normal' | 'sport'>('normal');
   const [acEnabled, setAcEnabled] = useState<boolean>(true);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
 
   const [bookingModalCharger, setBookingModalCharger] = useState<ChargerListing | null>(null);
 
@@ -236,6 +237,7 @@ export const JourneyPredictionView: React.FC = () => {
       setDestCoords(resolvedD);
       const roadKm = calculateRoadKm(resolvedO, resolvedD);
       setTripDistanceKm(roadKm);
+      setSelectedStopId(null);
     } else {
       if (!resolvedO && !resolvedD) {
         setRouteError('Could not locate origin & destination. Please enter city name or coordinates.');
@@ -246,6 +248,98 @@ export const JourneyPredictionView: React.FC = () => {
       }
     }
   };
+
+  // Find and generate all chargers along the route corridor
+  const routeChargers = useMemo(() => {
+    const oLat = originCoords[0];
+    const oLng = originCoords[1];
+    const dLat = destCoords[0];
+    const dLng = destCoords[1];
+    const vLat = dLat - oLat;
+    const vLng = dLng - oLng;
+    const lenSq = vLat * vLat + vLng * vLng;
+
+    const found: { charger: ChargerListing; distanceKm: number; offsetKm: number }[] = [];
+
+    if (lenSq > 0.00001) {
+      chargers.forEach(c => {
+        const cLat = c.lat - oLat;
+        const cLng = c.lng - oLng;
+        const t = Math.max(0, Math.min(1, (cLat * vLat + cLng * vLng) / lenSq));
+        const projLat = oLat + t * vLat;
+        const projLng = oLng + t * vLng;
+        const offsetLatKm = (c.lat - projLat) * 111;
+        const offsetLngKm = (c.lng - projLng) * 111 * Math.cos(c.lat * Math.PI / 180);
+        const offset = Math.hypot(offsetLatKm, offsetLngKm);
+        if (offset <= 35) {
+          found.push({
+            charger: c,
+            distanceKm: Math.max(5, Math.round(t * tripDistanceKm)),
+            offsetKm: Math.round(offset * 10) / 10
+          });
+        }
+      });
+    }
+
+    // Ensure at least 4 realistic highway corridor stations along the route
+    if (found.length < 4) {
+      const originCity = originInput.split(',')[0].replace(/City|Center|Airport|Station/gi, '').trim() || 'Origin';
+      const destCity = destInput.split(',')[0].replace(/City|Center|Airport|Station/gi, '').trim() || 'Destination';
+
+      const ratios = [0.22, 0.45, 0.68, 0.86];
+      const powerRatings = [60, 120, 50, 60];
+      const hubNames = ['Highway Fast Hub', 'Expressway SuperHub', 'Interstate Rapid Bay', 'Corridor Gateway Charger'];
+
+      ratios.forEach((ratio, idx) => {
+        const cLat = oLat + ratio * vLat + (idx % 2 === 0 ? 0.006 : -0.006);
+        const cLng = oLng + ratio * vLng + (idx % 2 === 0 ? -0.005 : 0.005);
+        const dist = Math.max(10, Math.round(ratio * tripDistanceKm));
+        const kw = powerRatings[idx];
+
+        const synthetic: ChargerListing = {
+          id: `route-hub-${idx}-${Math.round(cLat * 1000)}-${Math.round(cLng * 1000)}`,
+          hostId: `host-corridor-${idx}`,
+          hostName: `${originCity} - ${destCity} Expressway Network`,
+          hostAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          hostRating: 4.85,
+          hostReviewsCount: 42 + idx * 12,
+          title: `${originCity} ➔ ${destCity} ${hubNames[idx]} (${kw}kW)`,
+          description: `Fast charging stop on ${originCity} to ${destCity} corridor at Km ${dist}.`,
+          photos: ['https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=800'],
+          approxAddress: `${originCity} - ${destCity} Highway (Km ${dist})`,
+          exactAddress: `Km ${dist}, Highway Service Plaza`,
+          lat: cLat,
+          lng: cLng,
+          powerKw: kw,
+          powerTier: 'rapid',
+          connectorTypes: ['CCS-2', 'Type 2'],
+          cableLengthMeters: 7.0,
+          simultaneousSlots: 4,
+          pricingType: 'per-kwh',
+          priceRate: kw >= 100 ? 22.0 : 19.5,
+          safetyCertificateVerified: true,
+          schedule: { is247: true, days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], hours: '24/7' },
+          amenities: ['Food Court', 'Restrooms', '24/7 Canopy', 'Free WiFi'],
+          accessNotes: 'Direct expressway slip road access.',
+          bookingMode: 'instant',
+          maxDurationHours: 2,
+          status: 'available',
+          listingStatus: 'live',
+          createdAt: '2026-10-01',
+          locationType: 'hub',
+          isPublicStation: false
+        };
+
+        found.push({
+          charger: synthetic,
+          distanceKm: dist,
+          offsetKm: 0.6
+        });
+      });
+    }
+
+    return found.sort((a, b) => a.distanceKm - b.distanceKm);
+  }, [originCoords, destCoords, tripDistanceKm, chargers, originInput, destInput]);
 
   // Prediction calculations
   const prediction = useMemo(() => {
@@ -267,58 +361,31 @@ export const JourneyPredictionView: React.FC = () => {
     // Recommend optimal charging stop
     const optimalStopTargetKm = Math.min(tripDistanceKm * 0.55, Math.max(25, criticalThresholdKm - 10));
 
-    // Ratio along the straight line from origin to dest
-    const stopRatio = optimalStopTargetKm / tripDistanceKm;
-    const estimatedStopLat = originCoords[0] + (destCoords[0] - originCoords[0]) * stopRatio;
-    const estimatedStopLng = originCoords[1] + (destCoords[1] - originCoords[1]) * stopRatio;
+    // Pick best charger from route chargers: either user-selected or closest to optimalStopTargetKm
+    let bestCharger = routeChargers[0]?.charger;
+    let stopDistanceKm = routeChargers[0]?.distanceKm || Math.round(optimalStopTargetKm);
 
-    // Pick best charger from registered listings or dynamically generate for this specific route
-    const stopCandidate = chargers.find(c => {
-      const dLat = (c.lat - estimatedStopLat) * 111;
-      const dLng = (c.lng - estimatedStopLng) * 111 * Math.cos(estimatedStopLat * Math.PI / 180);
-      return Math.hypot(dLat, dLng) <= 30 && c.powerKw >= 22;
-    });
+    if (selectedStopId) {
+      const matched = routeChargers.find(rc => rc.charger.id === selectedStopId);
+      if (matched) {
+        bestCharger = matched.charger;
+        stopDistanceKm = matched.distanceKm;
+      }
+    } else {
+      let minDiff = 999999;
+      for (const rc of routeChargers) {
+        const diff = Math.abs(rc.distanceKm - optimalStopTargetKm);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestCharger = rc.charger;
+          stopDistanceKm = rc.distanceKm;
+        }
+      }
+    }
 
-    const originCity = originInput.split(',')[0].replace(/City|Center|Airport|Station/gi, '').trim() || 'Origin';
-    const destCity = destInput.split(',')[0].replace(/City|Center|Airport|Station/gi, '').trim() || 'Destination';
+    const estimatedStopLat = bestCharger.lat;
+    const estimatedStopLng = bestCharger.lng;
 
-    const bestCharger: ChargerListing = stopCandidate || {
-      id: `rec-corridor-${Math.round(estimatedStopLat * 1000)}-${Math.round(estimatedStopLng * 1000)}`,
-      hostId: 'hub-expressway-route',
-      hostName: `${originCity} - ${destCity} Expressway SuperHub`,
-      hostAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      hostRating: 4.9,
-      hostReviewsCount: 78,
-      title: `${originCity} ➔ ${destCity} Highway 60kW DC Fast Station`,
-      description: `Optimally situated expressway fast charging stop situated at Km ${Math.round(optimalStopTargetKm)} on the ${originCity} to ${destCity} corridor with automated bay access.`,
-      photos: ['https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=800'],
-      approxAddress: `${originCity} - ${destCity} Highway Corridor (Km ${Math.round(optimalStopTargetKm)})`,
-      exactAddress: `Km ${Math.round(optimalStopTargetKm)}, ${originCity}-${destCity} Highway Service Plaza`,
-      lat: estimatedStopLat,
-      lng: estimatedStopLng,
-      powerKw: 60,
-      powerTier: 'rapid',
-      connectorTypes: ['CCS-2', 'Type 2'],
-      cableLengthMeters: 7.5,
-      simultaneousSlots: 4,
-      pricingType: 'per-kwh',
-      priceRate: 21.00,
-      safetyCertificateName: 'Highway_SuperHub_Inspection.pdf',
-      safetyCertificateVerified: true,
-      schedule: { is247: true, days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], hours: '24/7' },
-      amenities: ['24/7 Food Mall', 'Clean Restrooms', 'Cafe Coffee Day', 'High-Speed WiFi'],
-      accessNotes: 'Direct expressway slip road access, highway service plaza bay.',
-      bookingMode: 'instant',
-      maxDurationHours: 2,
-      status: 'available',
-      listingStatus: 'live',
-      createdAt: '2026-10-01',
-      locationType: 'hub',
-      isPublicStation: false
-    };
-
-    // Stop distance along the trip
-    const stopDistanceKm = Math.round(optimalStopTargetKm);
     const arrivalSocAtStop = Math.max(6, Math.round(startSocPercentage - (stopDistanceKm / fullRangeKm) * 100));
     const targetDepartureSoc = 80; // Optimal fast-charge curve cutoff
     const socBoost = targetDepartureSoc - arrivalSocAtStop;
@@ -326,12 +393,12 @@ export const JourneyPredictionView: React.FC = () => {
     
     // Effective charge speed
     const effectiveChargingKw = Math.min(bestCharger.powerKw, vehicle.maxDcChargeKw);
-    const chargingTimeMinutes = Math.round((kwhToCharge / effectiveChargingKw) * 60) + 5; // +5 mins plug/handshake buffer
+    const chargingTimeMinutes = Math.round((kwhToCharge / effectiveChargingKw) * 60) + 5; // +5 mins buffer
     const chargingCost = Math.round(kwhToCharge * (bestCharger.priceRate || 19));
 
     // Distance from stop to destination
-    const remainingDistanceKm = tripDistanceKm - stopDistanceKm;
-    const finalArrivalSoc = Math.max(12, Math.round(targetDepartureSoc - (remainingDistanceKm / fullRangeKm) * 100));
+    const remainingDistanceKm = Math.max(0, tripDistanceKm - stopDistanceKm);
+    const finalArrivalSoc = Math.max(10, Math.round(targetDepartureSoc - (remainingDistanceKm / fullRangeKm) * 100));
 
     // Travel time
     const averageDrivingSpeedKmh = 68;
@@ -357,7 +424,7 @@ export const JourneyPredictionView: React.FC = () => {
       totalTripTimeMinutes,
       estimatedStopCoords: [estimatedStopLat, estimatedStopLng] as [number, number]
     };
-  }, [vehicle, drivingMode, acEnabled, startSocPercentage, tripDistanceKm, originCoords, destCoords, chargers]);
+  }, [vehicle, drivingMode, acEnabled, startSocPercentage, tripDistanceKm, routeChargers, selectedStopId]);
 
   // Leaflet Map Initialization and Route Rendering
   useEffect(() => {
@@ -394,41 +461,37 @@ export const JourneyPredictionView: React.FC = () => {
     const endPoint = L.latLng(destCoords[0], destCoords[1]);
     const stopPoint = L.latLng(prediction.estimatedStopCoords[0], prediction.estimatedStopCoords[1]);
 
-    // Critical discharge point (interpolated along vector if willDischarge)
-    const dischargeRatio = prediction.dischargeDistanceKm / tripDistanceKm;
-    const dischargeLat = originCoords[0] + (destCoords[0] - originCoords[0]) * dischargeRatio;
-    const dischargeLng = originCoords[1] + (destCoords[1] - originCoords[1]) * dischargeRatio;
-    const dischargePoint = L.latLng(dischargeLat, dischargeLng);
+    const bounds = L.latLngBounds([startPoint, endPoint]);
 
     // Custom Origin Icon (Green Pin)
     const originIcon = L.divIcon({
       className: 'custom-route-icon',
       html: `
-        <div style="background-color: #16A34A; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+        <div style="background-color: #16A34A; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
           A
         </div>
       `,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
 
     // Custom Destination Icon (Sky Blue Pin)
     const destIcon = L.divIcon({
       className: 'custom-route-icon',
       html: `
-        <div style="background-color: #0284C7; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+        <div style="background-color: #0284C7; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
           B
         </div>
       `,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
 
-    // Charging Stop Icon (Zap Yellow/Green)
+    // Selected Charging Stop Icon (Zap Gold/Pulsing)
     const chargeStopIcon = L.divIcon({
       className: 'custom-route-icon',
       html: `
-        <div style="background-color: #F59E0B; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 0 15px rgba(245, 158, 11, 0.7); animation: pulse 2s infinite;">
+        <div style="background-color: #F59E0B; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 0 15px rgba(245, 158, 11, 0.8);">
           ⚡
         </div>
       `,
@@ -436,43 +499,78 @@ export const JourneyPredictionView: React.FC = () => {
       iconAnchor: [18, 18]
     });
 
-    // Critical Discharge Warning Icon (Red Skull/Exclamation)
+    // Critical Discharge Warning Icon
     const criticalIcon = L.divIcon({
       className: 'custom-route-icon',
       html: `
-        <div style="background-color: #DC2626; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 0 12px rgba(220, 38, 38, 0.8);">
+        <div style="background-color: #DC2626; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 0 10px rgba(220, 38, 38, 0.8);">
           !
         </div>
       `,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
     });
 
-    // Markers
+    // Markers for Origin & Destination
     L.marker(startPoint, { icon: originIcon })
       .bindPopup(`<strong>Trip Origin:</strong><br/>${originInput}<br/>Initial Battery: ${startSocPercentage}%`)
       .addTo(layerGroup);
 
     L.marker(endPoint, { icon: destIcon })
-      .bindPopup(`<strong>Destination:</strong><br/>${destInput}<br/>Est. Arrival SoC: ${prediction.willDischarge ? prediction.finalArrivalSoc : Math.round(startSocPercentage - (tripDistanceKm / prediction.fullRangeKm) * 100)}%`)
+      .bindPopup(`<strong>Destination:</strong><br/>${destInput}<br/>Est. Arrival: ${prediction.willDischarge ? prediction.finalArrivalSoc : Math.round(startSocPercentage - (tripDistanceKm / prediction.fullRangeKm) * 100)}% SoC`)
       .addTo(layerGroup);
 
-    if (prediction.willDischarge) {
-      // Add Charging stop
-      L.marker(stopPoint, { icon: chargeStopIcon })
-        .bindPopup(`
-          <div style="font-family: sans-serif; font-size: 12px;">
-            <strong style="color: #0284C7;">Recommended Charging Stop</strong><br/>
-            <strong>${prediction.bestCharger.title}</strong><br/>
-            Arrive: <strong>${prediction.arrivalSocAtStop}% SoC</strong><br/>
-            Charge to: <strong>80% (+${prediction.kwhToCharge} kWh)</strong><br/>
-            Duration: <strong>${prediction.chargingTimeMinutes} mins</strong> (~${formatCurrency(prediction.chargingCost)})
-          </div>
-        `)
-        .addTo(layerGroup);
+    // Plot ALL nearby chargers along the route corridor on the map
+    routeChargers.forEach(rc => {
+      const isSelected = rc.charger.id === prediction.bestCharger.id;
+      const cLatLng = L.latLng(rc.charger.lat, rc.charger.lng);
+      bounds.extend(cLatLng);
 
-      // Add Critical point marker
-      L.marker(dischargePoint, { icon: criticalIcon })
+      if (isSelected) {
+        L.marker(cLatLng, { icon: chargeStopIcon, zIndexOffset: 1200 })
+          .bindPopup(`
+            <div style="font-family: sans-serif; font-size: 12px; min-width: 190px;">
+              <span style="background: #E0F2FE; color: #0284C7; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block;">PLANNED CHARGING STOP</span>
+              <strong style="display: block; font-size: 13px; color: #0F172A; margin-top: 4px;">${rc.charger.title}</strong>
+              <div style="color: #64748B; font-size: 11px; margin: 3px 0;">Km ${rc.distanceKm} along route • ${rc.offsetKm} km off highway</div>
+              <div style="color: #16A34A; font-weight: bold; font-size: 11px;">${rc.charger.powerKw} kW DC Fast • ${formatCurrency(rc.charger.priceRate)}/kWh</div>
+            </div>
+          `)
+          .addTo(layerGroup);
+      } else {
+        const corridorIcon = L.divIcon({
+          className: 'custom-corridor-icon',
+          html: `
+            <div style="background-color: #0284C7; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 6px rgba(2,132,199,0.5); font-size: 12px;">
+              ⚡
+            </div>
+          `,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+
+        L.marker(cLatLng, { icon: corridorIcon, zIndexOffset: 800 })
+          .bindPopup(`
+            <div style="font-family: sans-serif; font-size: 12px; min-width: 190px;">
+              <span style="background: #F1F5F9; color: #475569; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block;">ROUTE CHARGER</span>
+              <strong style="display: block; font-size: 13px; color: #0F172A; margin-top: 4px;">${rc.charger.title}</strong>
+              <div style="color: #64748B; font-size: 11px; margin: 3px 0;">Km ${rc.distanceKm} along route • ${rc.offsetKm} km off highway</div>
+              <div style="color: #0284C7; font-weight: bold; font-size: 11px;">${rc.charger.powerKw} kW • ${formatCurrency(rc.charger.priceRate)}/kWh</div>
+            </div>
+          `)
+          .addTo(layerGroup);
+      }
+    });
+
+    if (prediction.willDischarge) {
+      // Critical discharge point marker
+      const dischargeRatio = prediction.dischargeDistanceKm / tripDistanceKm;
+      const dischargeLat = originCoords[0] + (destCoords[0] - originCoords[0]) * dischargeRatio;
+      const dischargeLng = originCoords[1] + (destCoords[1] - originCoords[1]) * dischargeRatio;
+      const dischargePoint = L.latLng(dischargeLat, dischargeLng);
+      bounds.extend(dischargePoint);
+
+      L.marker(dischargePoint, { icon: criticalIcon, zIndexOffset: 1500 })
         .bindPopup(`
           <div style="font-family: sans-serif; font-size: 12px; color: #DC2626;">
             <strong>Warning: Discharge Zone</strong><br/>
@@ -502,58 +600,36 @@ export const JourneyPredictionView: React.FC = () => {
       }).addTo(layerGroup);
     }
 
-    // Fit map bounds
-    const bounds = L.latLngBounds([startPoint, endPoint]);
-    if (prediction.willDischarge) {
-      bounds.extend(stopPoint);
-      bounds.extend(dischargePoint);
-    }
-    map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(bounds, { padding: [40, 40] });
 
-  }, [originCoords, destCoords, prediction, originInput, destInput, startSocPercentage, tripDistanceKm, formatCurrency]);
+  }, [originCoords, destCoords, prediction, routeChargers, originInput, destInput, startSocPercentage, tripDistanceKm, formatCurrency]);
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-4 font-sans">
       
-      {/* Top Banner */}
-      <div className="bg-white border border-[#BAE6FD] rounded-card p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
-              <span className="text-xs font-mono font-bold text-[#0284C7] uppercase tracking-wider">
-                EV Journey Prediction & Energy Planner
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">
-              Route Simulation & Discharge Warning Engine
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1.5 rounded-xl bg-[#F0F9FF] border border-[#BAE6FD] text-[#0284C7] text-xs font-mono font-bold">
-              Dynamic Highway Corridor Mode
-            </span>
-          </div>
-        </div>
+      {/* Top Header */}
+      <div className="flex items-center justify-between pb-1">
+        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">
+          Journey Prediction
+        </h1>
       </div>
 
       {/* Main Grid: Controls (Left) & Results/Map (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Left Column: Trip Configuration Controls */}
-        <div className="lg:col-span-4 space-y-5">
+        <div className="lg:col-span-4 space-y-4">
           
-          <div className="bg-white border border-[#BAE6FD] rounded-card p-5 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-[#0F172A] font-mono flex items-center gap-2 pb-2 border-b border-[#E2E8F0]">
+          <div className="bg-white border border-[#BAE6FD] rounded-card p-4 space-y-3.5 shadow-sm">
+            <h3 className="text-xs font-bold text-[#0F172A] font-mono flex items-center gap-2 pb-2 border-b border-[#E2E8F0]">
               <Compass className="w-4 h-4 text-[#0284C7]" />
-              <span>1. Trip Waypoints</span>
+              <span>Waypoints</span>
             </h3>
 
             {/* Origin Input */}
             <div>
               <label className="block text-xs font-mono font-bold text-[#475569] mb-1 flex items-center justify-between">
-                <span>STARTING POINT (ORIGIN)</span>
+                <span>ORIGIN</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -746,10 +822,7 @@ export const JourneyPredictionView: React.FC = () => {
 
             {/* Air Conditioning Toggle */}
             <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
-              <div>
-                <span className="text-xs font-mono font-bold text-[#0F172A] block">Cabin Climate Control (AC)</span>
-                <span className="text-[10px] text-[#64748B] font-mono">Consumes ~8% auxiliary energy</span>
-              </div>
+              <span className="text-xs font-mono font-bold text-[#0F172A]">Cabin Climate Control (AC)</span>
               <button
                 type="button"
                 onClick={() => setAcEnabled(!acEnabled)}
@@ -780,62 +853,56 @@ export const JourneyPredictionView: React.FC = () => {
         </div>
 
         {/* Right Column: Prediction Results, Leaflet Map & Stop Recommendation */}
-        <div className="lg:col-span-8 space-y-5">
+        <div className="lg:col-span-8 space-y-4">
           
           {/* Discharge Alert or Safe Journey Banner */}
           {prediction.willDischarge ? (
-            <div className="bg-[#FFF1F2] border-2 border-[#FDA4AF] rounded-card p-5 text-[#9F1239] shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#FFE4E6] border border-[#FECDD3] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-6 h-6 text-[#E11D48] animate-bounce" />
+            <div className="bg-[#FFF1F2] border-2 border-[#FDA4AF] rounded-card p-4 text-[#9F1239] shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FFE4E6] border border-[#FECDD3] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-[#E11D48]" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#FEE2E2] text-[#E11D48]">
-                    Critical Discharge Alert
+                  <span className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded bg-[#FEE2E2] text-[#E11D48]">
+                    Discharge Warning
                   </span>
                   <span className="text-xs font-mono text-[#9F1239]">
                     Vehicle stops at <strong>Km {prediction.dischargeDistanceKm}</strong>
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-[#881337] mt-1">
-                  Battery will deplete {tripDistanceKm - prediction.dischargeDistanceKm} km before reaching destination
+                <h3 className="text-sm font-bold text-[#881337] mt-0.5">
+                  Battery depletes {tripDistanceKm - prediction.dischargeDistanceKm} km before destination • Charging stop scheduled at Km {prediction.stopDistanceKm}
                 </h3>
-                <p className="text-xs text-[#9F1239] mt-0.5 font-sans">
-                  With your current <strong>{startSocPercentage}% SoC</strong> and <strong>{prediction.initialUsableRangeKm} km</strong> range, charging is mandatory. An automated high-speed stop has been planned below at Km {prediction.stopDistanceKm}.
-                </p>
               </div>
             </div>
           ) : (
-            <div className="bg-[#F0FDF4] border-2 border-[#86EFAC] rounded-card p-5 text-[#14532D] shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] border border-[#86EFAC] flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-6 h-6 text-[#16A34A]" />
+            <div className="bg-[#F0FDF4] border-2 border-[#86EFAC] rounded-card p-4 text-[#14532D] shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#DCFCE7] border border-[#86EFAC] flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#DCFCE7] text-[#16A34A]">
-                    Safe Continuous Journey
+                  <span className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded bg-[#DCFCE7] text-[#16A34A]">
+                    Safe Journey
                   </span>
                   <span className="text-xs font-mono text-[#166534]">
                     Estimated Arrival: <strong>{prediction.finalArrivalSoc}% SoC</strong>
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-[#14532D] mt-1">
-                  Sufficient battery reserve to reach destination without interruption
+                <h3 className="text-sm font-bold text-[#14532D] mt-0.5">
+                  Direct arrival without mandatory charging stop
                 </h3>
-                <p className="text-xs text-[#166534] mt-0.5 font-sans">
-                  Your vehicle can complete the {tripDistanceKm} km journey directly. You will arrive with a comfortable buffer of approximately {prediction.finalArrivalSoc}% battery.
-                </p>
               </div>
             </div>
           )}
 
           {/* Interactive Leaflet Route Map */}
           <div className="bg-white border border-[#BAE6FD] rounded-card overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap items-center justify-between gap-3 bg-[#F8FAFC]">
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 bg-[#F8FAFC]">
               <div>
                 <h3 className="text-xs font-bold text-[#0F172A] font-mono flex items-center gap-2">
                   <Navigation className="w-4 h-4 text-[#0284C7]" />
-                  <span>Interactive Route & Charging Corridor Map</span>
+                  <span>Route Map</span>
                 </h3>
                 <span className="text-[11px] text-[#64748B] font-mono">
                   {originInput} ➔ {destInput} ({tripDistanceKm} km)
@@ -848,18 +915,14 @@ export const JourneyPredictionView: React.FC = () => {
                   <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A]"></span>
                   <span>Origin</span>
                 </div>
-                {prediction.willDischarge && (
-                  <>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
-                      <span>EVIO SuperHub</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
-                      <span>Discharge Point</span>
-                    </div>
-                  </>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
+                  <span>Planned Stop</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7]"></span>
+                  <span>Route Charger</span>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7]"></span>
                   <span>Destination</span>
@@ -871,33 +934,96 @@ export const JourneyPredictionView: React.FC = () => {
             <div ref={mapContainerRef} className="w-full h-80 z-0 bg-[#E0F2FE]/30" />
           </div>
 
-          {/* Recommended Charging Stop Action Card (if discharge predicted) */}
+          {/* Charging Stations Along Route Section */}
+          <div className="bg-white border border-[#BAE6FD] rounded-card p-4 space-y-3 shadow-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]">
+              <h3 className="text-xs font-bold text-[#0F172A] font-mono flex items-center gap-2">
+                <Zap className="w-4 h-4 text-[#0284C7]" />
+                <span>Nearby Chargers Along Route ({routeChargers.length})</span>
+              </h3>
+              <span className="text-[11px] font-mono text-[#64748B]">Click to change planned stop</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {routeChargers.map(rc => {
+                const isSelected = rc.charger.id === prediction.bestCharger.id;
+                return (
+                  <div
+                    key={rc.charger.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      isSelected
+                        ? 'bg-[#F0F9FF] border-[#0284C7] ring-1 ring-[#0284C7]'
+                        : 'bg-white border-[#E2E8F0] hover:border-[#BAE6FD]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#E0F2FE] text-[#0284C7]">
+                        Km {rc.distanceKm} • {rc.offsetKm} km off route
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-[#16A34A]">
+                        {rc.charger.powerKw} kW
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold font-mono text-[#0F172A] truncate">
+                      {rc.charger.title}
+                    </h4>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#E2E8F0]/60">
+                      <span className="text-[11px] font-mono font-bold text-[#475569]">
+                        {formatCurrency(rc.charger.priceRate)}/kWh
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isSelected ? (
+                          <span className="text-[10px] font-mono font-bold text-[#0284C7] px-2 py-1 rounded bg-[#E0F2FE]">
+                            Active Stop ✓
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStopId(rc.charger.id)}
+                            className="text-[10px] font-mono font-bold text-[#0284C7] hover:bg-[#E0F2FE] px-2 py-1 rounded border border-[#BAE6FD]"
+                          >
+                            Select Stop
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setBookingModalCharger(rc.charger)}
+                          className="text-[10px] font-mono font-bold text-white bg-[#0284C7] hover:bg-[#0369A1] px-2.5 py-1 rounded shadow-xs"
+                        >
+                          Book Bay
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Planned Charging Stop Action Card (if discharge predicted) */}
           {prediction.willDischarge && (
-            <div className="bg-white border-2 border-[#0284C7] rounded-card p-5 shadow-md">
+            <div className="bg-white border-2 border-[#0284C7] rounded-card p-4 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E2E8F0]">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-[#E0F2FE] text-[#0284C7] font-mono font-bold text-[10px] border border-[#BAE6FD]">
-                      RECOMMENDED STOP • KM {prediction.stopDistanceKm}
+                      PLANNED STOP • KM {prediction.stopDistanceKm}
                     </span>
                     <span className="text-xs font-mono font-bold text-[#16A34A] flex items-center gap-1">
                       <Zap className="w-3.5 h-3.5" />
                       {prediction.bestCharger.powerKw} kW Fast Bay
                     </span>
                   </div>
-                  <h3 className="text-base font-bold text-[#0F172A] mt-1 font-mono">
+                  <h3 className="text-sm font-bold text-[#0F172A] mt-1 font-mono">
                     {prediction.bestCharger.title}
                   </h3>
-                  <p className="text-xs text-[#64748B] font-mono mt-0.5">
-                    {prediction.bestCharger.approxAddress}
-                  </p>
                 </div>
 
                 {/* 1-Click Book Slot Button */}
                 <button
                   type="button"
                   onClick={() => setBookingModalCharger(prediction.bestCharger)}
-                  className="px-4 py-2.5 rounded-xl bg-[#0284C7] hover:bg-[#0369A1] text-white font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 shrink-0"
+                  className="px-4 py-2 rounded-xl bg-[#0284C7] hover:bg-[#0369A1] text-white font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 shrink-0"
                 >
                   <Calendar className="w-4 h-4" />
                   <span>BOOK CHARGING SLOT</span>
@@ -905,40 +1031,36 @@ export const JourneyPredictionView: React.FC = () => {
               </div>
 
               {/* Charging Stop Metrics Bar */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 font-mono text-center">
-                <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 font-mono text-center">
+                <div className="p-2.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
                   <span className="text-[10px] text-[#64748B] uppercase block">Arrival Battery</span>
-                  <span className="text-lg font-bold text-[#D97706]">{prediction.arrivalSocAtStop}% SoC</span>
-                  <span className="text-[10px] text-[#94A3B8] block">Safe reserve</span>
+                  <span className="text-base font-bold text-[#D97706]">{prediction.arrivalSocAtStop}% SoC</span>
                 </div>
-                <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                <div className="p-2.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
                   <span className="text-[10px] text-[#64748B] uppercase block">Charge Needed</span>
-                  <span className="text-lg font-bold text-[#0284C7]">+{prediction.kwhToCharge} kWh</span>
-                  <span className="text-[10px] text-[#94A3B8] block">Charges to 80%</span>
+                  <span className="text-base font-bold text-[#0284C7]">+{prediction.kwhToCharge} kWh</span>
                 </div>
-                <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                <div className="p-2.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
                   <span className="text-[10px] text-[#64748B] uppercase block">Dwell Time</span>
-                  <span className="text-lg font-bold text-[#0F172A]">{prediction.chargingTimeMinutes} mins</span>
-                  <span className="text-[10px] text-[#94A3B8] block">Fast DC Ramp</span>
+                  <span className="text-base font-bold text-[#0F172A]">{prediction.chargingTimeMinutes} mins</span>
                 </div>
-                <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
-                  <span className="text-[10px] text-[#64748B] uppercase block">Est. Energy Cost</span>
-                  <span className="text-lg font-bold text-[#16A34A]">{formatCurrency(prediction.chargingCost)}</span>
-                  <span className="text-[10px] text-[#94A3B8] block">At standard rate</span>
+                <div className="p-2.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                  <span className="text-[10px] text-[#64748B] uppercase block">Est. Cost</span>
+                  <span className="text-base font-bold text-[#16A34A]">{formatCurrency(prediction.chargingCost)}</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* Battery Discharge Curve & Journey Timeline */}
-          <div className="bg-white border border-[#BAE6FD] rounded-card p-5 space-y-4 shadow-sm">
+          <div className="bg-white border border-[#BAE6FD] rounded-card p-4 space-y-3.5 shadow-sm">
             <h3 className="text-sm font-bold text-[#0F172A] font-mono flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <BatteryCharging className="w-4 h-4 text-[#0284C7]" />
-                <span>Simulated Battery Degradation (SoC vs Distance)</span>
+                <span>Battery Level (SoC vs Distance)</span>
               </span>
               <span className="text-xs text-[#64748B] font-normal">
-                Total Trip Duration: <strong className="text-[#0F172A]">{Math.floor(prediction.totalTripTimeMinutes / 60)}h {prediction.totalTripTimeMinutes % 60}m</strong>
+                Trip Duration: <strong className="text-[#0F172A]">{Math.floor(prediction.totalTripTimeMinutes / 60)}h {prediction.totalTripTimeMinutes % 60}m</strong>
               </span>
             </h3>
 

@@ -26,25 +26,19 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
     <div className="space-y-6 font-sans">
       
       {/* Header */}
-      <div className="bg-white border border-[#BAE6FD] rounded-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Charging Sessions & Telemetry Log</h1>
-        <p className="text-xs text-[#64748B] mt-1">
-          Monitor active vehicle charging telemetry, review past kWh consumption, and download certified tax receipts.
-        </p>
+      <div className="bg-white border border-[#BAE6FD] rounded-card p-5 shadow-sm">
+        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">Charging Sessions & History</h1>
       </div>
 
       {/* Pending Approval Banner */}
       {bookings.some(b => b.status === 'requested') && (
-        <div className="bg-[#F0F9FF] border-2 border-[#0284C7] rounded-card p-5 relative overflow-hidden shadow-sm">
+        <div className="bg-[#F0F9FF] border-2 border-[#0284C7] rounded-card p-4 relative overflow-hidden shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full bg-[#0284C7] animate-ping"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-ping"></span>
             <div>
-              <div className="text-xs font-mono font-bold text-[#0284C7] uppercase tracking-wider">
-                Slot Booking Request Sent to Hub Host
+              <div className="text-xs font-mono font-bold text-[#0284C7] uppercase">
+                Slot Request Pending Host Confirmation
               </div>
-              <p className="text-xs text-[#0F172A] mt-0.5">
-                Your reservation request is awaiting approval from the Hub Host. Once accepted, your slot and charging session will be activated immediately.
-              </p>
             </div>
           </div>
         </div>
@@ -79,7 +73,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                 className="px-5 py-3 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white font-mono font-bold text-xs tracking-wider shadow-md shadow-[#16A34A]/25 transition-all flex items-center gap-2 active:scale-98"
               >
                 <Zap className="w-4 h-4 fill-white" />
-                <span>ARRIVED AT STATION • PLUG IN & START CHARGING</span>
+                <span>START CHARGING SESSION</span>
               </button>
             </div>
           </div>

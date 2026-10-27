@@ -82,7 +82,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-xl font-bold tracking-tight text-[#0F172A] font-mono">EVIO</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E0F2FE] text-[#0284C7] font-mono font-bold border border-[#BAE6FD]">NETWORK</span>
               </div>
-              <p className="text-[10px] text-[#64748B] uppercase tracking-wider hidden sm:block font-mono">Peer-to-Peer Charging Grid</p>
             </div>
           </div>
 
@@ -134,7 +133,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#16A34A] text-white shadow-sm"
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Hub Stations & Telemetry</span>
+                <span>Hub Fleet</span>
               </button>
             )}
 
@@ -144,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#0284C7] text-white shadow-sm"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Supervisor Safety Operations</span>
+                <span>Grid Supervisor</span>
               </button>
             )}
           </nav>
