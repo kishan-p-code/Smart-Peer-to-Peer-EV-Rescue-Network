@@ -1,4 +1,6 @@
-
+================================================
+FILE: README.md
+================================================
 # EVIO – Peer-to-Peer EV Charging Marketplace
 
 **Evio** is a community-powered EV charging network platform that lets homeowners and businesses list their private EV chargers and allows EV drivers to find, book, navigate, and pay for charging sessions seamlessly.
